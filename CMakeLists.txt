@@ -11,41 +11,14 @@ project(GeneticAlgorithm
 
 set(CMAKE_GENERATOR_PLATFORM, "Visual Studio 16 2019" x64)
 
+#set(CMAKE_CXX_STANDARD 11)
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 add_subdirectory(src)
 add_subdirectory(app)
 
-
-#################################
-
-configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
-execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-  RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download)
-
-if (result)
-  message(FATAL_ERROR "Cmake step for googletest failed: ${result}")
-endif()
-
-execute_process(COMMAND ${CMAKE_COMMAND} --build .
-  RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download)
-
-if (result)
-  message(FATAL_ERROR "Build step for googletest failed: ${result}")
-endif()
-
-#Building done: now setting up
-
-if(Win32)
-  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-endif()
-
-add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
-                 ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
-                 EXCLUDE_FROM_ALL)
-
-
+include(cmake/buildGoogleTest.cmake)
+add_subdirectory(tests)
 
 
