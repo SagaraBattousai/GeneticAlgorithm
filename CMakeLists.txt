@@ -9,14 +9,17 @@ project(GeneticAlgorithm
         DESCRIPTION "Genetic Algorithm Library."
         LANGUAGES CXX)
 
-set(CMAKE_GENERATOR_PLATFORM, "Visual Studio 16 2019" x64)
-
-#set(CMAKE_CXX_STANDARD 11)
+if (MSVC)
+	string(REGEX REPLACE "(.*)/W3(.*)" "\\1\\2" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+endif()
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+
+#add_subdirectory(Statistics)
 add_subdirectory(src)
 add_subdirectory(app)
+
 
 include(cmake/buildGoogleTest.cmake)
 add_subdirectory(tests)

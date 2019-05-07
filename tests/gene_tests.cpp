@@ -26,10 +26,8 @@
     //gene = Gene<T>();//(seed);
   }
 
-  using GeneTypes = ::testing::Types<char, short, int, long, long long,
-                                     unsigned char, unsigned short, unsigned int, unsigned long, unsigned long long,
-                                     int_fast8_t, int_fast16_t, int_fast32_t, int_fast64_t,
-                                     uint_fast8_t, uint_fast16_t, uint_fast32_t, uint_fast64_t>;
+  using GeneTypes = ::testing::Types<char, short, int, long, long long, 
+                                     unsigned char, unsigned short, unsigned int, unsigned long, unsigned long long>;
 
   TYPED_TEST_SUITE(GeneTest, GeneTypes);
 

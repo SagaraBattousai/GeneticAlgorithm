@@ -1,3 +1,5 @@
+#pragma once
+
 #include <random>
 #include <chrono>
 #include <cstddef>
@@ -6,7 +8,7 @@
 #include <iostream>
 #include <cstdint>
 
-typedef struct { long long seed; } seed_t;
+typedef struct { unsigned seed; } seed_t;
 
 
 template <class T>
@@ -27,25 +29,25 @@ public:
 
   Gene<T> mutate() const;
 
-  Gene<T> mutate(long long seed) const;
+  Gene<T> mutate(unsigned seed) const;
 
   template<class T>
   friend std::array<Gene<T>, 2> singleCrossover(Gene<T> p1, Gene<T> p2);
 
   template<class T>
-  friend std::array<Gene<T>, 2> singleCrossover(Gene<T> p1, Gene<T> p2, long long seed);
+  friend std::array<Gene<T>, 2> singleCrossover(Gene<T> p1, Gene<T> p2, unsigned seed);
 
   template<class T>
   friend std::array<Gene<T>, 2> dualCrossover(Gene<T> p1, Gene<T> p2);
 
   template<class T>
-  friend std::array<Gene<T>, 2> dualCrossover(Gene<T> p1, Gene<T> p2, long long seed1, long long seed2);
+  friend std::array<Gene<T>, 2> dualCrossover(Gene<T> p1, Gene<T> p2, unsigned seed1, unsigned seed2);
   
   template<class T>
   friend std::array<Gene<T>, 2> uniformCrossover(Gene<T> p1, Gene<T> p2);
 
   template<class T>
-  friend std::array<Gene<T>, 2> uniformCrossover(Gene<T> p1, Gene<T> p2, long long seed);
+  friend std::array<Gene<T>, 2> uniformCrossover(Gene<T> p1, Gene<T> p2, unsigned seed);
   
 
   template<class T>
@@ -80,34 +82,33 @@ template<class T>
 Gene<T>::Gene(seed_t seed) : Gene(sizeof(T) * 8, seed.seed)
 {}
 
-
-
 template<class T>
 Gene<T>::Gene(std::size_t bit_length)
   : 
-  Gene(bit_length, std::chrono::system_clock::now().time_since_epoch().count())
+  Gene(bit_length, seed_t{ (unsigned)std::chrono::system_clock::now().time_since_epoch().count() })
 {}
 
 template<class T>
-Gene<T>::Gene(std::size_t bit_length, seed_t seed)
-  :
-  bit_length(bit_length),
-  bit_representation(std::uniform_int_distribution<T>(0, (((long long)1) << bit_length) - 1)(std::default_random_engine(seed.seed)))
-{}
+Gene<T>::Gene(std::size_t bit_length, seed_t seed) : bit_length(bit_length)
+{
+  auto dre = std::default_random_engine(seed.seed);
+  T max_value = (T) std::numeric_limits<unsigned long long>::max();
+  bit_representation = std::uniform_int_distribution<T>(0, max_value)(dre);
+}
 
 template<>
-Gene<char>::Gene(std::size_t bit_length, seed_t seed)
-  :
-  bit_length(bit_length),
-  bit_representation(std::uniform_int_distribution<int_fast16_t>(0, (((long long)1) << bit_length) - 1)(std::default_random_engine(seed.seed)))
-{}
+Gene<char>::Gene(std::size_t bit_length, seed_t seed) : bit_length(bit_length)
+{
+  auto dre = std::default_random_engine(seed.seed);
+  bit_representation = (char) std::uniform_int_distribution<int_fast16_t>(0, UINT_FAST8_MAX)(dre);
+}
 
 template<>
-Gene<unsigned char>::Gene(std::size_t bit_length, seed_t seed)
-  :
-  bit_length(bit_length),
-  bit_representation(std::uniform_int_distribution<uint_fast16_t>(0, (((long long)1) << bit_length) - 1)(std::default_random_engine(seed.seed)))
-{}
+Gene<unsigned char>::Gene(std::size_t bit_length, seed_t seed) : bit_length(bit_length)
+{
+  auto dre = std::default_random_engine(seed.seed);
+  bit_representation = (unsigned char) std::uniform_int_distribution<uint_fast16_t>(0, UINT_FAST8_MAX)(dre);
+}
 
 template<class T>
 Gene<T>::Gene(std::size_t bit_length, T bit_representation)
@@ -125,15 +126,17 @@ T Gene<T>::getDNA() const
 template<class T>
 Gene<T> Gene<T>::mutate() const
 {
-  return mutate(std::chrono::system_clock::now().time_since_epoch().count());
+  return mutate((unsigned) std::chrono::system_clock::now().time_since_epoch().count());
 }
 
 template<class T>
-Gene<T> Gene<T>::mutate(long long seed) const
+Gene<T> Gene<T>::mutate(unsigned seed) const
 {
   auto dist = std::uniform_int_distribution<std::size_t>(0, bit_length - 1);
 
-  std::size_t modIndex = dist(std::default_random_engine(seed));
+  auto dre = std::default_random_engine(seed);
+
+  std::size_t modIndex = dist(dre);
 
   T modBit = (long long)1 << modIndex;
 
@@ -143,15 +146,17 @@ Gene<T> Gene<T>::mutate(long long seed) const
 template<class T>
 std::array<Gene<T>, 2> singleCrossover(Gene<T> p1, Gene<T> p2)
 {
-  return singleCrossover(p1, p2, std::chrono::system_clock::now().time_since_epoch().count());
+  return singleCrossover(p1, p2, (unsigned) std::chrono::system_clock::now().time_since_epoch().count());
 }
 
 template<class T>
-std::array<Gene<T>, 2> singleCrossover(Gene<T> p1, Gene<T> p2, long long seed)
+std::array<Gene<T>, 2> singleCrossover(Gene<T> p1, Gene<T> p2, unsigned seed)
 {
   auto dist = std::uniform_int_distribution<std::size_t>(1, p1.bit_length - 1);
 
-  std::size_t modIndex = dist(std::default_random_engine(seed));
+  std::default_random_engine gen(seed);
+
+  std::size_t modIndex = dist(gen);
 
   std::array<T, 2> masks = Gene<T>::generateMask<1>({ modIndex }, p1.bit_length);
 
@@ -161,19 +166,23 @@ std::array<Gene<T>, 2> singleCrossover(Gene<T> p1, Gene<T> p2, long long seed)
 template<class T>
 std::array<Gene<T>, 2> dualCrossover(Gene<T> p1, Gene<T> p2)
 {
-  return dualCrossover(p1, p2, std::chrono::system_clock::now().time_since_epoch().count(), std::chrono::system_clock::now().time_since_epoch().count());
+  return dualCrossover(p1, p2, (unsigned) std::chrono::system_clock::now().time_since_epoch().count(), (unsigned) std::chrono::system_clock::now().time_since_epoch().count());
 }
 
 template<class T>
-std::array<Gene<T>, 2> dualCrossover(Gene<T> p1, Gene<T> p2, long long seed1, long long seed2)
+std::array<Gene<T>, 2> dualCrossover(Gene<T> p1, Gene<T> p2, unsigned seed1, unsigned seed2)
 {
   auto dist0 = std::uniform_int_distribution<std::size_t>(1, p1.bit_length - 2);
 
-  std::size_t firstIndex = dist0(std::default_random_engine(seed1));
+  std::default_random_engine gen1(seed1);
+
+  std::size_t firstIndex = dist0(gen1);
 
   auto dist1 = std::uniform_int_distribution<std::size_t>(1, p1.bit_length - firstIndex - 1);
 
-  std::size_t secondIndex = dist1(std::default_random_engine(seed2));
+  std::default_random_engine gen2(seed2);
+
+  std::size_t secondIndex = dist1(gen2);
 
   std::array<T, 2> masks = Gene<T>::generateMask<2>({ firstIndex, secondIndex }, p1.bit_length);
 
@@ -183,17 +192,19 @@ std::array<Gene<T>, 2> dualCrossover(Gene<T> p1, Gene<T> p2, long long seed1, lo
 template<class T>
 std::array<Gene<T>, 2> uniformCrossover(Gene<T> p1, Gene<T> p2)
 {
-  return uniformCrossover(p1, p2, std::chrono::system_clock::now().time_since_epoch().count());
+  return uniformCrossover(p1, p2, (unsigned) std::chrono::system_clock::now().time_since_epoch().count());
 }
 
 template<class T>
-std::array<Gene<T>, 2> uniformCrossover(Gene<T> p1, Gene<T> p2, long long seed)
+std::array<Gene<T>, 2> uniformCrossover(Gene<T> p1, Gene<T> p2, unsigned seed)
 {
-  T ones = (((long long)1) << p1.bit_length) - 1;
+  T ones = (T)std::numeric_limits<unsigned long long>::max(); //(((long long)1) << p1.bit_length) - 1;
+
+  std::default_random_engine gen(seed);
 
   auto dist = std::uniform_int_distribution<T>(0, ones);
 
-  T mask = dist(std::default_random_engine(seed));
+  T mask = dist(gen);
 
   T flip = mask ^ ones;
 
@@ -201,13 +212,15 @@ std::array<Gene<T>, 2> uniformCrossover(Gene<T> p1, Gene<T> p2, long long seed)
 }
 
 template<>
-std::array<Gene<char>, 2> uniformCrossover(Gene<char> p1, Gene<char> p2, long long seed)
+std::array<Gene<char>, 2> uniformCrossover(Gene<char> p1, Gene<char> p2, unsigned seed)
 {
-  char ones = (((long long)1) << p1.bit_length) - 1;
+  char ones = std::numeric_limits<unsigned char>::max(); //(((long long)1) << p1.bit_length) - 1;
 
   auto dist = std::uniform_int_distribution<int_fast16_t>(0, ones);
 
-  char mask = dist(std::default_random_engine(seed));
+  auto dre = std::default_random_engine(seed);
+
+  char mask = (char) dist(dre);
 
   char flip = mask ^ ones;
 
@@ -215,13 +228,15 @@ std::array<Gene<char>, 2> uniformCrossover(Gene<char> p1, Gene<char> p2, long lo
 }
 
 template<>
-std::array<Gene<unsigned char>, 2> uniformCrossover(Gene<unsigned char> p1, Gene<unsigned char> p2, long long seed)
+std::array<Gene<unsigned char>, 2> uniformCrossover(Gene<unsigned char> p1, Gene<unsigned char> p2, unsigned seed)
 {
-  unsigned char ones = (((long long)1) << p1.bit_length) - 1;
+  unsigned char ones = std::numeric_limits<unsigned char>::max();// (((long long)1) << p1.bit_length) - 1;
 
   auto dist = std::uniform_int_distribution<uint_fast16_t>(0, ones);
 
-  unsigned char mask = dist(std::default_random_engine(seed));
+  auto dre = std::default_random_engine(seed);
+
+  unsigned char mask = (unsigned char) dist(dre);
 
   unsigned char flip = mask ^ ones;
 
@@ -294,17 +309,17 @@ std::array<T, 2> Gene<T>::generateMask(std::array<std::size_t, numCrossovers> cr
 
   std::size_t maskBitsCount = crossoverPoints[0];
 
-  T mask = (maskValue << crossoverPoints[0]) - 1;
+  T mask = (T) (maskValue << crossoverPoints[0]) - 1;
 
   int i = 0;
 
-  for (auto& cp = crossoverPoints.begin() + 1; cp < crossoverPoints.end(); cp++)
+  for (auto cp = crossoverPoints.begin() + 1; cp < crossoverPoints.end(); cp++)
   {
     mask = mask << (*cp);
 
     if (i % 2 == 1)
     {
-      T ones = (maskValue << *cp) - 1;
+      T ones = (T) (maskValue << *cp) - 1;
       mask = mask & ones;
     }
 
@@ -314,16 +329,16 @@ std::array<T, 2> Gene<T>::generateMask(std::array<std::size_t, numCrossovers> cr
 
   std::size_t lower = bit_length - maskBitsCount;
 
-  mask = mask << lower;
+  mask = (T) (mask << lower);
 
   //even push on zeros, odd push on ones
   if (i % 2 == 1)
   {
-    T ones = (maskValue << lower) - 1;
-    mask = mask | ones;
+    T ones = (T) (maskValue << lower) - 1;
+    mask = (T) (mask | ones);
   }
 
-  T flip = (maskValue << bit_length) - 1;
+  T flip = (T) std::numeric_limits<unsigned long long>::max(); //(T)(maskValue << bit_length) - 1;
 
-  return { mask, mask ^ flip };
+  return { mask, (T) (mask ^ flip) };
 }

@@ -1,18 +1,24 @@
-#include <iostream>
-//#include "gene.h"
+﻿#include <iostream>
+#include "gene.h"
 #include <string>
 #include <array>
 #include <random>
 #include <cstddef>
-
+#include <cmath>
+#include <vector>
+#include "geneticAlgorithm.h"
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <limits>
+#include <numeric>
 
 double expected(int bit_length)
 {
   long long max = (((long long)1) << bit_length) - 1;
 
-  return max / 2;
+  return (double) max / 2;
 }
-
 
 template<class T = int>
 std::string to_binary(T num)
@@ -44,116 +50,118 @@ std::string to_binary(T num)
   return str == "" ? "0" : str;
 }
 
-/*
-template<class T, int numCrossovers>
-std::array<T, 2> generateMask(std::array<std::size_t, numCrossovers> crossoverPoints, std::size_t bit_length)
+
+/*template<class Score>
+//std::vector<std::size_t> probabilisticSample(std::vector<Score> scores, int count)
 {
-  long long maskValue = 1;
+  std::vector<std::size_t> sample;
 
-  std::size_t maskBitsCount = crossoverPoints[0];
-
-  T mask = (maskValue << crossoverPoints[0]) - 1;
+  std::default_random_engine gen((unsigned)std::chrono::system_clock::now().time_since_epoch().count());
 
   int i = 0;
 
-  for (auto& cp = crossoverPoints.begin() + 1; cp < crossoverPoints.end(); cp++)
+  while (i < count)
   {
-    mask = mask << (*cp);
+    Score totalScore = 0;
 
-    if (i % 2 == 1)
+    std::for_each(scores.begin(), scores.end(), [&totalScore](Score score) {totalScore += score; });
+
+    if (totalScore == 0)
     {
-      T ones = (maskValue << *cp) - 1;
-      mask = mask & ones;
+      return sample;
     }
 
-    maskBitsCount += *cp;
+    std::uniform_real_distribution<double> dist(std::numeric_limits<double>::min(), totalScore);
+
+    auto it = scores.begin();
+
+    double randomVariable = dist(gen);
+
+    //Score or double??
+    double theOne = randomVariable - *it;
+
+      while (theOne > 0)
+      {
+        //Could be one line but it's messy.
+        ++it;
+        theOne -= *it;
+      }
+
+    //Better than distance beacuse it wouldn't compile if you change the vector into a list which would be inefficient.
+    std::size_t index = it - scores.begin();
+
+    sample.push_back(index);
+
+    *it = 0;
     i++;
   }
 
-  std::size_t lower = bit_length - maskBitsCount;
+  return sample;
+}
 
-  mask = mask << lower;
+*/
 
-  //even push on zeros, odd push on ones
-  if (i % 2 == 1)
+template<class T>
+struct ff {
+  T operator() (Gene<T> g)
   {
-    T ones = (maskValue << lower) - 1;
-    mask = mask | ones;
+    return g.getDNA();
   }
 
-  T flip = (maskValue << bit_length) - 1;
+  static constexpr T thresh = std::numeric_limits<T>::max();
 
-  return { mask, mask ^ flip };
 
-}
-*/
+};
+
+template<class T>
+struct ffImp {
+  int operator() (Gene<T> g)
+  {
+    int i = 0;
+
+    int acc = 1;
+
+    T dna = g.getDNA();
+
+    while (dna > 0)
+    {
+      int val = dna & 0x01;
+
+      i += acc * val;
+
+      acc++;
+
+      dna = dna >> 1;
+
+    }
+
+    return (g.getDNA() % 2) == 0 ? i : 1;
+  };
+
+  static constexpr int thresh = (((sizeof(T) * 8) * (sizeof(T) * 8 + 1)) / 2)-1;
+
+};
 
 
 int main()
 {
- 
-  /*double avg = 0;
+  //CrossoverStrategy cs = ;
 
-  int constexpr bit_length = 4;
-  Gene<long long> g = Gene<long long>(bit_length);
+  //#define GENETIC_DIAGNOSTIC
 
-  for (int i = 0; i < 100000; i++)
-  {
-    
-    avg += g.bit_representation;
-    g = Gene<long long>(bit_length);
-  }
+  GeneticAlgorithm<ffImp<unsigned >, unsigned , CrossoverStrategy::Single, unsigned > ga(32, ffImp<unsigned >(), ffImp<unsigned>::thresh, 100, 0.75, 0.02);
 
-  avg /= 100000;
-  
-  std::string bin = to_binary(g.bit_representation);
+  Gene<unsigned > gene = ga.run();
 
-  double exp = expected(bit_length);
+  std::cout << gene << ", " << gene.getDNA() << std::endl;
 
-  std::cout <<  exp - avg << " " << bin << " " << bin.length() << " " << g.bit_representation << std::endl;
-  */
-  
- /* Gene<int> p1 = Gene<int>(16, 0b1111000011110000);
-  
-  Gene<int> p2 = Gene<int>(16, 0b1001100110011001);
+  //std::cout << (unsigned long long) (std::numeric_limits<unsigned long long>::max() - std::numeric_limits<long long>::min());
 
-  Gene<int> *c1 = uniformCrossover(p1, p2).data();
-  
-  std::cout << p1 << " : "  << p2 << " : "  << c1[0] << " : " << c1[1]  << std::endl;
+
+
+
   
 
-  int ix = -5;
 
-  int iy = -1025;
-
-  unsigned ux = 5;
-
-  unsigned uy = 1025;
-
-  unsigned unx = -5;
-
-  unsigned uny = -1025;
-
-  std::cout << to_binary<int>(ix) << " : " << to_binary<char>((char)ix) << " : " << to_binary<unsigned char>((unsigned char)ix) << std::endl;
-
-  std::cout << to_binary<int>(iy) << " : " << to_binary<char>((char)iy) << " : " << to_binary<unsigned char>((unsigned char)iy) << std::endl;
-
-  std::cout << to_binary<unsigned>(ux) << " : " << to_binary<char>((char)ux) << " : " << to_binary<unsigned char>((unsigned char)ux) << std::endl;
-
-  std::cout << to_binary<unsigned>(uy) << " : " << to_binary<char>((char)uy) << " : " << to_binary<unsigned char>((unsigned char)uy) << std::endl;
-
-  std::cout << to_binary<unsigned>(unx) << " : " << to_binary<char>((char)unx) << " : " << to_binary<unsigned char>((unsigned char)unx) << std::endl;
-
-  std::cout << to_binary<unsigned>(uny) << " : " << to_binary<char>((char)uny) << " : " << to_binary<unsigned char>((unsigned char)uny) << std::endl;
-
-  //std::array<int, 2> masks = generateMask<int, 1>({ 4 }, 8);
-
-  //std::cout << to_binary(masks[0]) << " : " << to_binary(masks[1]) << std::endl;
-
-  //std::cout << "HI" << std::endl;
-
-  */
- 
-
-  return 0;
+  
 }
